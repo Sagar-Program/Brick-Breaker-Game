@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brick Breaker Game</title>
+    <style>
+        body { text-align: center; }
+        canvas { background: #eee; display: block; margin: auto; }
+    </style>
+</head>
+<body>
+    <h1>Brick Breaker Game</h1>
+    <p>Coins: <span id="coinCount">0</span> | Lives: <span id="lives">3</span></p>
+    <canvas id="gameCanvas" width="480" height="320"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        let ballX = canvas.width / 2, ballY = canvas.height - 30;
+        let ballDX = 2, ballDY = -2;
+        let paddleWidth = 75, paddleHeight = 10;
+        let paddleX = (canvas.width - paddleWidth) / 2;
+        let rightPressed = false, leftPressed = false;
+        let brickRowCount = 5, brickColumnCount = 7, brickWidth = 60, brickHeight = 20;
+        let brickPadding = 10, brickOffsetTop = 30, brickOffsetLeft = 30;
+        let bricks = [];
+        let powerUps = ["split", "slow", "fast"];
+        let lives = 3;
+        let coins = 0;
+        
+        function resetBricks() {
+            bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    let hasPowerUp = Math.random() < 0.05 ? powerUps[Math.floor(Math.random() * powerUps.length)] : null;
+                    bricks[c][r] = { x: 0, y: 0, status: 1, powerUp: hasPowerUp };
+                }
+            }
+        }
+        
+        resetBricks();
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            ctx.fillStyle = "blue";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            let colors = ["green", "blue", "orange", "purple", "red"];
+            let color = colors[Math.floor(Math.random() * colors.length)];
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status === 1) {
+                        let brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                        let brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.fillStyle = color;
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function collisionDetection() {
+            let allBricksCleared = true;
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    let b = bricks[c][r];
+                    if (b.status === 1) {
+                        allBricksCleared = false;
+                        if (ballX > b.x && ballX < b.x + brickWidth && ballY > b.y && ballY < b.y + brickHeight) {
+                            ballDY = -ballDY;
+                            b.status = 0;
+                            if (b.powerUp) activatePowerUp(b.powerUp);
+                        }
+                    }
+                }
+            }
+            if (allBricksCleared) {
+                coins += 100;
+                document.getElementById("coinCount").textContent = coins;
+                resetBricks();
+                ballX = canvas.width / 2;
+                ballY = canvas.height - 30;
+                ballDX = 2;
+                ballDY = -2;
+            }
+        }
+
+        function activatePowerUp(type) {
+            if (type === "split") {
+                console.log("Ball Split Power Activated!");
+            } else if (type === "slow") {
+                ballDX *= 0.5;
+                ballDY *= 0.5;
+                setTimeout(() => { ballDX *= 2; ballDY *= 2; }, 10000);
+            } else if (type === "fast") {
+                ballDX *= 1.5;
+                ballDY *= 1.5;
+                setTimeout(() => { ballDX /= 1.5; ballDY /= 1.5; }, 10000);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
+
+            if (ballX + ballDX > canvas.width - 10 || ballX + ballDX < 10) {
+                ballDX = -ballDX;
+            }
+            if (ballY + ballDY < 10) {
+                ballDY = -ballDY;
+            } else if (ballY + ballDY > canvas.height - 10) {
+                if (ballX > paddleX && ballX < paddleX + paddleWidth) {
+                    ballDY = -ballDY;
+                } else {
+                    lives--;
+                    document.getElementById("lives").textContent = lives;
+                    if (lives === 0) {
+                        alert("Game Over!");
+                        document.location.reload();
+                    } else {
+                        ballX = canvas.width / 2;
+                        ballY = canvas.height - 30;
+                        ballDX = 2;
+                        ballDY = -2;
+                    }
+                }
+            }
+
+            if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                paddleX += 7;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 7;
+            }
+
+            ballX += ballDX;
+            ballY += ballDY;
+            requestAnimationFrame(draw);
+        }
+
+        document.addEventListener("keydown", event => {
+            if (event.key === "Right" || event.key === "ArrowRight") rightPressed = true;
+            else if (event.key === "Left" || event.key === "ArrowLeft") leftPressed = true;
+        });
+        document.addEventListener("keyup", event => {
+            if (event.key === "Right" || event.key === "ArrowRight") rightPressed = false;
+            else if (event.key === "Left" || event.key === "ArrowLeft") leftPressed = false;
+        });
+
+        draw();
+    </script>
+</body>
+</html>
